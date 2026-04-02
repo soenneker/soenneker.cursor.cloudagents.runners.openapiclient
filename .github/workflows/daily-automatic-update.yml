@@ -3,9 +3,6 @@ on:
   schedule:
     - cron: "0 17 * * *"
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/**'
 
 env:
   GH__USERNAME: ${{ secrets.GH__USERNAME }}
