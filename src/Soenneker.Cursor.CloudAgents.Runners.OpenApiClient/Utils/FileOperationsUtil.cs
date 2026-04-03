@@ -5,7 +5,6 @@ using Soenneker.Git.Util.Abstract;
 using Soenneker.Cursor.CloudAgents.Runners.OpenApiClient.Utils.Abstract;
 using Soenneker.Utils.Dotnet.Abstract;
 using Soenneker.Utils.Environment;
-using Soenneker.Utils.Process.Abstract;
 using System;
 using System.IO;
 using System.Linq;
@@ -15,8 +14,8 @@ using Soenneker.Extensions.ValueTask;
 using Soenneker.Kiota.Util.Abstract;
 using Soenneker.Utils.Directory.Abstract;
 using Soenneker.Utils.File.Abstract;
-using Soenneker.Utils.File.Download.Abstract;
 using System.Collections.Generic;
+using Soenneker.Cloudflare.Downloader.Abstract;
 
 namespace Soenneker.Cursor.CloudAgents.Runners.OpenApiClient.Utils;
 
@@ -27,29 +26,28 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     private readonly IConfiguration _configuration;
     private readonly IGitUtil _gitUtil;
     private readonly IDotnetUtil _dotnetUtil;
-    private readonly IProcessUtil _processUtil;
     private readonly IKiotaUtil _kiotaUtil;
-    private readonly IFileDownloadUtil _fileDownloadUtil;
+    private readonly ICloudflareDownloader _cloudflareDownloader;
     private readonly IFileUtil _fileUtil;
     private readonly IDirectoryUtil _directoryUtil;
 
-    public FileOperationsUtil(ILogger<FileOperationsUtil> logger, IConfiguration configuration, IGitUtil gitUtil, IDotnetUtil dotnetUtil, IProcessUtil processUtil, 
-        IFileDownloadUtil fileDownloadUtil, IFileUtil fileUtil, IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil)
+    public FileOperationsUtil(ILogger<FileOperationsUtil> logger, IConfiguration configuration, IGitUtil gitUtil, IDotnetUtil dotnetUtil, IFileUtil fileUtil,
+        IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil, ICloudflareDownloader cloudflareDownloader)
     {
         _logger = logger;
         _configuration = configuration;
         _gitUtil = gitUtil;
         _dotnetUtil = dotnetUtil;
-        _processUtil = processUtil;
         _kiotaUtil = kiotaUtil;
-        _fileDownloadUtil = fileDownloadUtil;
+        _cloudflareDownloader = cloudflareDownloader;
         _fileUtil = fileUtil;
         _directoryUtil = directoryUtil;
     }
 
     public async ValueTask Process(CancellationToken cancellationToken = default)
     {
-        string gitDirectory = await _gitUtil.CloneToTempDirectory($"https://github.com/soenneker/{Constants.Library.ToLowerInvariantFast()}", cancellationToken: cancellationToken);
+        string gitDirectory = await _gitUtil.CloneToTempDirectory($"https://github.com/soenneker/{Constants.Library.ToLowerInvariantFast()}",
+            cancellationToken: cancellationToken);
 
         string targetFilePath = Path.Combine(gitDirectory, "openapi.yaml");
 
@@ -57,8 +55,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         string openApiDocumentUrl = _configuration["CloudAgents:ClientGenerationUrl"] ?? "https://cursor.com/docs-static/cloud-agents-openapi.yaml";
 
-        string? filePath = await _fileDownloadUtil.Download(openApiDocumentUrl,
-            targetFilePath, fileExtension: ".yaml", cancellationToken: cancellationToken);
+        await _cloudflareDownloader.DownloadFileToPath(openApiDocumentUrl, targetFilePath, cancellationToken: cancellationToken);
 
         await _kiotaUtil.EnsureInstalled(cancellationToken);
 
@@ -66,9 +63,11 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         await DeleteAllExceptCsproj(srcDirectory, cancellationToken);
 
-        await _kiotaUtil.Generate(filePath, "CursorCloudAgentsOpenApiClient", Constants.Library, gitDirectory, cancellationToken).NoSync();
+        await _kiotaUtil.Generate(targetFilePath, "CursorCloudAgentsOpenApiClient", Constants.Library, gitDirectory, cancellationToken)
+                        .NoSync();
 
-        await BuildAndPush(gitDirectory, cancellationToken).NoSync();
+        await BuildAndPush(gitDirectory, cancellationToken)
+            .NoSync();
     }
 
     public async ValueTask DeleteAllExceptCsproj(string directoryPath, CancellationToken cancellationToken = default)
