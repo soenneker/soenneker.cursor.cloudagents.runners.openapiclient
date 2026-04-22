@@ -1,16 +1,15 @@
-using Soenneker.Tests.FixturedUnit;
-using Xunit;
+using Soenneker.Tests.HostedUnit;
 
 namespace Soenneker.Cursor.CloudAgents.Runners.OpenApiClient.Tests;
 
-[Collection("Collection")]
-public sealed class CursorCloudAgentsOpenApiClientRunnerTests : FixturedUnitTest
+[ClassDataSource<Host>(Shared = SharedType.PerTestSession)]
+public sealed class CursorCloudAgentsOpenApiClientRunnerTests : HostedUnitTest
 {
-    public CursorCloudAgentsOpenApiClientRunnerTests(Fixture fixture, ITestOutputHelper output) : base(fixture, output)
+    public CursorCloudAgentsOpenApiClientRunnerTests(Host host) : base(host)
     {
     }
 
-    [Fact]
+    [Test]
     public void Default()
     {
 
