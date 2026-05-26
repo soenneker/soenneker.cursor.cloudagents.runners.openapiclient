@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Kiota.Util.Abstract;
+using Soenneker.OpenApi.Fixer.Abstract;
 using Soenneker.Utils.Directory.Abstract;
 using Soenneker.Utils.File.Abstract;
 using System.Collections.Generic;
@@ -27,18 +28,20 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     private readonly IGitUtil _gitUtil;
     private readonly IDotnetUtil _dotnetUtil;
     private readonly IKiotaUtil _kiotaUtil;
+    private readonly IOpenApiFixer _openApiFixer;
     private readonly ICloudflareDownloader _cloudflareDownloader;
     private readonly IFileUtil _fileUtil;
     private readonly IDirectoryUtil _directoryUtil;
 
     public FileOperationsUtil(ILogger<FileOperationsUtil> logger, IConfiguration configuration, IGitUtil gitUtil, IDotnetUtil dotnetUtil, IFileUtil fileUtil,
-        IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil, ICloudflareDownloader cloudflareDownloader)
+        IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil, ICloudflareDownloader cloudflareDownloader, IOpenApiFixer openApiFixer)
     {
         _logger = logger;
         _configuration = configuration;
         _gitUtil = gitUtil;
         _dotnetUtil = dotnetUtil;
         _kiotaUtil = kiotaUtil;
+        _openApiFixer = openApiFixer;
         _cloudflareDownloader = cloudflareDownloader;
         _fileUtil = fileUtil;
         _directoryUtil = directoryUtil;
@@ -51,11 +54,15 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         string targetFilePath = Path.Combine(gitDirectory, "openapi.yaml");
 
+        string fixedFilePath = Path.Combine(gitDirectory, "fixed.json");
+
         await _fileUtil.DeleteIfExists(targetFilePath, cancellationToken: cancellationToken);
 
         string openApiDocumentUrl = _configuration["CloudAgents:ClientGenerationUrl"] ?? "https://cursor.com/docs-static/cloud-agents-openapi.yaml";
 
         await _cloudflareDownloader.DownloadFileToPath(openApiDocumentUrl, targetFilePath, cancellationToken: cancellationToken);
+        await _openApiFixer.Fix(targetFilePath, fixedFilePath, cancellationToken);
+
 
         await _kiotaUtil.EnsureInstalled(cancellationToken);
 
@@ -63,7 +70,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
 
         await DeleteAllExceptCsproj(srcDirectory, cancellationToken);
 
-        await _kiotaUtil.Generate(targetFilePath, "CursorCloudAgentsOpenApiClient", Constants.Library, gitDirectory, cancellationToken)
+        await _kiotaUtil.Generate(fixedFilePath, "CursorCloudAgentsOpenApiClient", Constants.Library, gitDirectory, cancellationToken)
                         .NoSync();
 
         await BuildAndPush(gitDirectory, cancellationToken)
