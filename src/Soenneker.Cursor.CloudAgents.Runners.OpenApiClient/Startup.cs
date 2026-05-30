@@ -3,6 +3,7 @@ using Soenneker.Cloudflare.Downloader.Registrars;
 using Soenneker.Kiota.Util.Registrars;
 using Soenneker.Managers.Runners.Registrars;
 using Soenneker.OpenApi.Fixer.Registrars;
+using Soenneker.Utils.Yaml.Registrars;
 using Soenneker.Cursor.CloudAgents.Runners.OpenApiClient.Utils;
 using Soenneker.Cursor.CloudAgents.Runners.OpenApiClient.Utils.Abstract;
 
@@ -25,6 +26,7 @@ public static class Startup
                 .AddSingleton<IFileOperationsUtil, FileOperationsUtil>()
                 .AddRunnersManagerAsSingleton()
                 .AddOpenApiFixerAsSingleton()
+                .AddYamlUtilAsSingleton()
                 .AddKiotaUtilAsSingleton()
                 .AddCloudflareDownloaderAsSingleton();
 

@@ -15,6 +15,7 @@ using Soenneker.Kiota.Util.Abstract;
 using Soenneker.OpenApi.Fixer.Abstract;
 using Soenneker.Utils.Directory.Abstract;
 using Soenneker.Utils.File.Abstract;
+using Soenneker.Utils.Yaml.Abstract;
 using System.Collections.Generic;
 using Soenneker.Cloudflare.Downloader.Abstract;
 
@@ -32,9 +33,10 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
     private readonly ICloudflareDownloader _cloudflareDownloader;
     private readonly IFileUtil _fileUtil;
     private readonly IDirectoryUtil _directoryUtil;
+    private readonly IYamlUtil _yamlUtil;
 
     public FileOperationsUtil(ILogger<FileOperationsUtil> logger, IConfiguration configuration, IGitUtil gitUtil, IDotnetUtil dotnetUtil, IFileUtil fileUtil,
-        IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil, ICloudflareDownloader cloudflareDownloader, IOpenApiFixer openApiFixer)
+        IDirectoryUtil directoryUtil, IKiotaUtil kiotaUtil, ICloudflareDownloader cloudflareDownloader, IYamlUtil yamlUtil, IOpenApiFixer openApiFixer)
     {
         _logger = logger;
         _configuration = configuration;
@@ -45,6 +47,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         _cloudflareDownloader = cloudflareDownloader;
         _fileUtil = fileUtil;
         _directoryUtil = directoryUtil;
+        _yamlUtil = yamlUtil;
     }
 
     public async ValueTask Process(CancellationToken cancellationToken = default)
@@ -53,15 +56,18 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
             cancellationToken: cancellationToken);
 
         string targetFilePath = Path.Combine(gitDirectory, "openapi.yaml");
+        string jsonFilePath = Path.Combine(gitDirectory, "openapi.json");
 
         string fixedFilePath = Path.Combine(gitDirectory, "fixed.json");
 
         await _fileUtil.DeleteIfExists(targetFilePath, cancellationToken: cancellationToken);
+        await _fileUtil.DeleteIfExists(jsonFilePath, cancellationToken: cancellationToken);
 
         string openApiDocumentUrl = _configuration["CloudAgents:ClientGenerationUrl"] ?? "https://cursor.com/docs-static/cloud-agents-openapi.yaml";
 
         await _cloudflareDownloader.DownloadFileToPath(openApiDocumentUrl, targetFilePath, cancellationToken: cancellationToken);
-        await _openApiFixer.Fix(targetFilePath, fixedFilePath, cancellationToken);
+        await _yamlUtil.SaveAsJson(targetFilePath, jsonFilePath, true, cancellationToken);
+        await _openApiFixer.Fix(jsonFilePath, fixedFilePath, cancellationToken);
 
 
         await _kiotaUtil.EnsureInstalled(cancellationToken);
