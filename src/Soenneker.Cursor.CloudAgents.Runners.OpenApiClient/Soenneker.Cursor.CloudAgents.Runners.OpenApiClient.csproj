@@ -23,8 +23,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Cloudflare.Downloader" Version="11.0.477" />
-        <PackageReference Include="Soenneker.Extensions.LoggerConfiguration" Version="11.0.1468" />
+        <PackageReference Include="Soenneker.Cloudflare.Downloader" Version="11.0.478" />
+        <PackageReference Include="Soenneker.Extensions.LoggerConfiguration" Version="11.0.1469" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="11.0.0" />
         <PackageReference Include="Soenneker.Kiota.Util" Version="11.0.193" />
         <PackageReference Include="Soenneker.Managers.Runners" Version="11.0.2735" />
